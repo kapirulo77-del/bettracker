@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BetTracker">
+<title>BetTracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #faf9f6;
+    --white: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #5a5a5a;
+    --ink-faint: #999;
+    --border: #e8e4de;
+    --green: #1a6b3c;
+    --green-light: #edf7f1;
+    --red: #b8291a;
+    --red-light: #fdf0ee;
+    --nula: #5a5a5a;
+    --nula-light: #f0efed;
+    --tennis: #c8860a;
+    --tennis-light: #fef8ed;
+    --football: #1a4a8c;
+    --football-light: #edf2fb;
+    --accent: #c8860a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    padding-bottom: calc(64px + var(--safe-bottom));
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 20px; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+
+  .desktop-nav { display: flex; gap: 4px; }
+  .desktop-nav button {
+    background: none; border: none; padding: 8px 14px; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    color: var(--ink-soft); cursor: pointer; transition: all 0.15s;
+  }
+  .desktop-nav button:hover { background: var(--cream); color: var(--ink); }
+  .desktop-nav button.active { background: var(--ink); color: white; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .bank-badge {
+    font-size: 13px; font-weight: 600; color: var(--ink-soft);
+    background: var(--cream); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 20px; white-space: nowrap;
+  }
+  .bank-badge span { color: var(--ink); }
+
+  /* ── Sync indicator ── */
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ccc; transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .sync-dot.syncing { background: var(--tennis); animation: pulse 1s infinite; }
+  .sync-dot.ok { background: var(--green); }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Bottom Nav ── */
+  .bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--white); border-top: 1px solid var(--border);
+    padding: 8px 0 calc(8px + var(--safe-bottom));
+    z-index: 200; justify-content: space-around;
+  }
+  .bottom-nav button {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; font-family: 'DM Sans', sans-serif;
+    font-size: 10px; font-weight: 500; color: var(--ink-faint);
+    cursor: pointer; padding: 4px 20px; border-radius: 8px; transition: color 0.15s;
+  }
+  .bottom-nav button .nav-icon { font-size: 22px; line-height: 1; }
+  .bottom-nav button.active { color: var(--ink); }
+
+  /* ── Layout ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Loading overlay ── */
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(250,249,246,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500; backdrop-filter: blur(2px);
+  }
+  .loading-overlay.hidden { display: none; }
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--ink); border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .card-title { font-family: 'DM Serif Display', serif; font-size: 17px; margin-bottom: 18px; }
+
+  /* ── Stats grid ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+  .stat-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+  .stat-value { font-family: 'DM Serif Display', serif; font-size: 24px; line-height: 1; margin-bottom: 4px; }
+  .stat-value.pos { color: var(--green); }
+  .stat-value.neg { color: var(--red); }
+  .stat-sub { font-size: 11px; color: var(--ink-faint); }
+
+  .dashboard-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+  /* ── Monthly table ── */
+  .monthly-table { width: 100%; border-collapse: collapse; }
+  .monthly-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .monthly-table td { padding: 11px 10px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .monthly-table tr:last-child td { border-bottom: none; }
+  .monthly-table tr:hover td { background: var(--cream); }
+
+  /* ── Sport ── */
+  .sport-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .sport-row:last-child { border-bottom: none; }
+  .sport-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 20px; }
+  .sport-tag.tennis { background: var(--tennis-light); color: var(--tennis); }
+  .sport-tag.football { background: var(--football-light); color: var(--football); }
+  .sport-tag.all { background: var(--cream); color: var(--ink-soft); }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); }
+  input, select {
+    font-family: 'DM Sans', sans-serif; font-size: 16px; padding: 12px 14px;
+    border: 1.5px solid var(--border); border-radius: 10px; background: var(--white);
+    color: var(--ink); outline: none; transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--ink); }
+
+  .resultado-group { display: flex; gap: 8px; }
+  .resultado-btn {
+    flex: 1; padding: 13px 8px; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s; color: var(--ink-soft); text-align: center;
+  }
+  .resultado-btn:active { transform: scale(0.97); }
+  .resultado-btn.ganada.selected { background: var(--green-light); border-color: var(--green); color: var(--green); font-weight: 700; }
+  .resultado-btn.perdida.selected { background: var(--red-light); border-color: var(--red); color: var(--red); font-weight: 700; }
+  .resultado-btn.nula.selected { background: var(--nula-light); border-color: var(--nula); color: var(--nula); font-weight: 700; }
+
+  .btn-primary {
+    background: var(--ink); color: white; border: none; padding: 15px 28px;
+    border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 15px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; width: 100%; margin-top: 10px;
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .bank-form { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px; }
+  .bank-form .form-group { flex: 1; margin: 0; }
+  .bank-form button {
+    padding: 12px 18px; background: var(--ink); color: white; border: none;
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+
+  /* ── Historial ── */
+  .filters { display: flex; gap: 7px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn { padding: 7px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: var(--ink-soft); cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { background: var(--ink); border-color: var(--ink); color: white; }
+  .filter-btn.tennis.active { background: var(--tennis); border-color: var(--tennis); color: white; }
+  .filter-btn.football.active { background: var(--football); border-color: var(--football); color: white; }
+  .filter-btn.nula-filter.active { background: var(--nula); border-color: var(--nula); color: white; }
+
+  .apuesta-row { display: grid; grid-template-columns: 72px 1fr 64px 72px 80px 90px 32px; align-items: center; gap: 10px; padding: 13px 14px; border-bottom: 1px solid var(--border); transition: background 0.1s; font-size: 13px; }
+  .apuesta-row:last-child { border-bottom: none; }
+  .apuesta-row:hover { background: var(--cream); }
+  .apuesta-header { display: grid; grid-template-columns: 72px 1fr 64px 72px 80px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 2px solid var(--border); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+
+  .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.03em; white-space: nowrap; }
+  .badge.ganada { background: var(--green-light); color: var(--green); }
+  .badge.perdida { background: var(--red-light); color: var(--red); }
+  .badge.nula { background: var(--nula-light); color: var(--nula); }
+
+  .del-btn { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 18px; padding: 4px; border-radius: 6px; transition: all 0.15s; line-height: 1; }
+  .del-btn:hover { background: var(--red-light); color: var(--red); }
+
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--ink-faint); }
+  .empty-state p { font-size: 15px; margin-top: 8px; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 50%; transform: translateX(-50%) translateY(8px); background: var(--ink); color: white; padding: 11px 20px; border-radius: 24px; font-size: 14px; font-weight: 500; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Racha ── */
+  .racha-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .racha-pill.win { background: var(--green-light); color: var(--green); }
+  .racha-pill.loss { background: var(--red-light); color: var(--red); }
+  .racha-pill.none { background: var(--cream); color: var(--ink-faint); }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .desktop-nav { display: none; }
+    .bottom-nav { display: flex; }
+    .dashboard-sections { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .apuesta-row, .apuesta-header { grid-template-columns: 64px 1fr 60px 70px 32px; }
+    .apuesta-row > *:nth-child(4), .apuesta-row > *:nth-child(6),
+    .apuesta-header > *:nth-child(4), .apuesta-header > *:nth-child(6) { display: none; }
+    .monthly-table th:nth-child(n+4), .monthly-table td:nth-child(n+4) { display: none; }
+    header { padding: 0 14px; }
+    main { padding: 16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<header>
+  <div class="logo">Bet<span>Tracker</span></div>
+  <nav class="desktop-nav">
+    <button class="active" onclick="showPage('dashboard')">Dashboard</button>
+    <button onclick="showPage('nueva')">Nueva apuesta</button>
+    <button onclick="showPage('historial')">Historial</button>
+  </nav>
+  <div class="header-right">
+    <div class="sync-dot" id="sync-dot" title="Estado sincronización"></div>
+    <div class="bank-badge">Bank: <span id="header-bank">0,00 €</span></div>
+  </div>
+</header>
+
+<nav class="bottom-nav">
+  <button class="active" onclick="showPage('dashboard')">
+    <span class="nav-icon">📊</span>Dashboard
+  </button>
+  <button onclick="showPage('nueva')">
+    <span class="nav-icon">➕</span>Apuesta
+  </button>
+  <button onclick="showPage('historial')">
+    <span class="nav-icon">📋</span>Historial
+  </button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:14px">Bank</div>
+      <div class="bank-form">
+        <div class="form-group">
+          <label>Bank inicial (€)</label>
+          <input type="number" id="bank-input" placeholder="Ej: 1000" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <button onclick="setBank()">Guardar</button>
+      </div>
+    </div>
+    <div class="stats-grid" id="kpi-grid"></div>
+    <div class="dashboard-sections">
+      <div class="card">
+        <div class="card-title">Por deporte</div>
+        <div id="sport-breakdown"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Racha & acierto</div>
+        <div id="racha-section"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Por mes</div>
+      <div style="overflow-x:auto">
+        <table class="monthly-table">
+          <thead><tr><th>Mes</th><th>Apuestas</th><th>Acierto</th><th>Apostado</th><th>Balance</th><th>ROI</th></tr></thead>
+          <tbody id="monthly-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- NUEVA APUESTA -->
+  <div class="page" id="page-nueva">
+    <div class="card" style="max-width:520px;margin:0 auto">
+      <div class="card-title">Registrar apuesta</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Cuota</label>
+          <input type="number" id="f-cuota" placeholder="Ej: 1.75" step="0.01" min="1.01" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Cantidad (€)</label>
+          <input type="number" id="f-cantidad" placeholder="Ej: 50" step="0.01" min="0.01" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Deporte</label>
+          <select id="f-deporte">
+            <option value="tenis">🎾 Tenis</option>
+            <option value="futbol">⚽ Fútbol</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="f-fecha">
+        </div>
+        <div class="form-group full">
+          <label>Resultado</label>
+          <div class="resultado-group">
+            <button class="resultado-btn ganada" onclick="selectResultado('ganada')">✅ Ganada</button>
+            <button class="resultado-btn perdida" onclick="selectResultado('perdida')">❌ Perdida</button>
+            <button class="resultado-btn nula" onclick="selectResultado('nula')">↩️ Nula</button>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>Descripción (opcional)</label>
+          <input type="text" id="f-desc" placeholder="Ej: Djokovic vs Alcaraz">
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-registrar" onclick="registrarApuesta()">Registrar apuesta</button>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="page" id="page-historial">
+    <div class="card">
+      <div class="section-header">
+        <div class="card-title" style="margin:0">Historial</div>
+        <span id="historial-count" style="font-size:12px;color:var(--ink-faint)"></span>
+      </div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
+        <button class="filter-btn tennis" onclick="setFilter('tenis',this)">🎾 Tenis</button>
+        <button class="filter-btn football" onclick="setFilter('futbol',this)">⚽ Fútbol</button>
+        <button class="filter-btn" onclick="setFilter('ganada',this)">✅ Ganadas</button>
+        <button class="filter-btn" onclick="setFilter('perdida',this)">❌ Perdidas</button>
+        <button class="filter-btn nula-filter" onclick="setFilter('nula',this)">↩️ Nulas</button>
+      </div>
+      <div class="apuesta-header">
+        <span>Fecha</span><span>Descripción</span><span>Cuota</span>
+        <span>Apostado</span><span>Resultado</span><span>Balance</span><span></span>
+      </div>
+      <div id="historial-list"></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Supabase config ──────────────────────────────────────────────────────────
+const SUPA_URL = 'https://vfnwcpgvnvurehquqhli.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbndjcGd2bnZ1cmVocXVxaGxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTMyNTAsImV4cCI6MjA5MTY2OTI1MH0.53tPhI2nP4Fz2mcnz6o7_KJ1lqb_wjIDyakDpGZl89A';
+
+const headers = {
+  'Content-Type': 'application/json',
+  'apikey': SUPA_KEY,
+  'Authorization': `Bearer ${SUPA_KEY}`,
+  'Prefer': 'return=representation'
+};
+
+async function sbGet(table, params = '') {
+  const r = await fetch(`${SUPA_URL}/rest/v1/${table}${params}`, { headers });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPost(table, body) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/${table}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPatch(table, params, body) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/${table}${params}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbDelete(table, params) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/${table}${params}`, { method: 'DELETE', headers });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+// ─── Estado local (cache) ─────────────────────────────────────────────────────
+let state = { bank: 0, apuestas: [] };
+let filtroActivo = 'all';
+let resultadoSeleccionado = null;
+
+function setSyncDot(status) {
+  const d = document.getElementById('sync-dot');
+  d.className = 'sync-dot ' + status;
+}
+
+// ─── Carga inicial desde Supabase ─────────────────────────────────────────────
+async function loadFromSupabase() {
+  setSyncDot('syncing');
+  try {
+    const [configRows, apuestas] = await Promise.all([
+      sbGet('config', '?key=eq.bank'),
+      sbGet('apuestas', '?order=fecha.asc,id.asc')
+    ]);
+    state.bank = configRows.length > 0 ? parseFloat(configRows[0].value) : 0;
+    state.apuestas = apuestas.map(a => ({
+      id: a.id,
+      fecha: a.fecha,
+      cuota: parseFloat(a.cuota),
+      cantidad: parseFloat(a.cantidad),
+      deporte: a.deporte,
+      resultado: a.resultado,
+      beneficio: parseFloat(a.beneficio),
+      bank: parseFloat(a.bank),
+      desc: a.descripcion || ''
+    }));
+    setSyncDot('ok');
+  } catch(e) {
+    setSyncDot('error');
+    toast('Error al cargar datos ❌');
+    console.error(e);
+  }
+}
+
+// ─── Navegación ───────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.desktop-nav button, .bottom-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const map = { dashboard: 0, nueva: 1, historial: 2 };
+  document.querySelectorAll('.desktop-nav button')[map[name]].classList.add('active');
+  document.querySelectorAll('.bottom-nav button')[map[name]].classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'historial') renderHistorial();
+  if (name === 'nueva') initForm();
+  window.scrollTo(0, 0);
+}
+
+// ─── Formato ──────────────────────────────────────────────────────────────────
+function fmtEur(v) {
+  const abs = Math.abs(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (v >= 0 ? '+' : '-') + abs + ' €';
+}
+function fmtBank(v) {
+  return v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';
+}
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+
+// ─── Bank ─────────────────────────────────────────────────────────────────────
+async function setBank() {
+  const v = parseFloat(document.getElementById('bank-input').value);
+  if (isNaN(v) || v < 0) { toast('Introduce un valor válido'); return; }
+  setSyncDot('syncing');
+  try {
+    await sbPatch('config', '?key=eq.bank', { value: v });
+    state.bank = v;
+    renderDashboard();
+    setSyncDot('ok');
+    toast('Bank actualizado ✓');
+  } catch(e) {
+    setSyncDot('error');
+    toast('Error al guardar ❌');
+  }
+}
+
+function updateHeaderBank() {
+  document.getElementById('header-bank').textContent = fmtBank(state.bank);
+}
+
+// ─── Form ─────────────────────────────────────────────────────────────────────
+function initForm() {
+  resultadoSeleccionado = null;
+  document.querySelectorAll('.resultado-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-cuota').value = '';
+  document.getElementById('f-cantidad').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('btn-registrar').disabled = false;
+}
+
+function selectResultado(r) {
+  resultadoSeleccionado = r;
+  document.querySelectorAll('.resultado-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.resultado-btn.' + r).classList.add('selected');
+}
+
+async function registrarApuesta() {
+  const cuota = parseFloat(document.getElementById('f-cuota').value);
+  const cantidad = parseFloat(document.getElementById('f-cantidad').value);
+  const deporte = document.getElementById('f-deporte').value;
+  const fecha = document.getElementById('f-fecha').value;
+  const descripcion = document.getElementById('f-desc').value.trim();
+
+  if (isNaN(cuota) || cuota <= 1) { toast('La cuota debe ser mayor que 1'); return; }
+  if (isNaN(cantidad) || cantidad <= 0) { toast('Introduce una cantidad válida'); return; }
+  if (!resultadoSeleccionado) { toast('Selecciona el resultado'); return; }
+  if (!fecha) { toast('Selecciona la fecha'); return; }
+
+  let beneficio = 0;
+  let newBank = state.bank;
+  if (resultadoSeleccionado === 'ganada') {
+    beneficio = Math.round(((cantidad * cuota) - cantidad) * 100) / 100;
+    newBank = Math.round((state.bank + beneficio) * 100) / 100;
+  } else if (resultadoSeleccionado === 'perdida') {
+    beneficio = Math.round(-cantidad * 100) / 100;
+    newBank = Math.round((state.bank + beneficio) * 100) / 100;
+  }
+
+  const id = Date.now();
+  const row = { id, fecha, cuota, cantidad, deporte, resultado: resultadoSeleccionado, beneficio, bank: newBank, descripcion };
+
+  document.getElementById('btn-registrar').disabled = true;
+  setSyncDot('syncing');
+
+  try {
+    await sbPost('apuestas', row);
+    if (resultadoSeleccionado !== 'nula') {
+      await sbPatch('config', '?key=eq.bank', { value: newBank });
+    }
+    state.bank = newBank;
+    state.apuestas.push({ ...row, desc: descripcion });
+    const msgs = { ganada: '✅ Ganada registrada', perdida: '❌ Perdida registrada', nula: '↩️ Nula registrada' };
+    toast(msgs[resultadoSeleccionado]);
+    initForm();
+    updateHeaderBank();
+    setSyncDot('ok');
+  } catch(e) {
+    setSyncDot('error');
+    toast('Error al guardar ❌');
+    document.getElementById('btn-registrar').disabled = false;
+    console.error(e);
+  }
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+function calcStats(apuestas) {
+  const sinNulas = apuestas.filter(a => a.resultado !== 'nula');
+  const total = sinNulas.length;
+  const nulas = apuestas.filter(a => a.resultado === 'nula').length;
+  const ganadas = sinNulas.filter(a => a.resultado === 'ganada').length;
+  const totalApostado = sinNulas.reduce((s, a) => s + a.cantidad, 0);
+  const beneficioNeto = apuestas.reduce((s, a) => s + a.beneficio, 0);
+  const pctAcierto = total > 0 ? (ganadas / total * 100) : 0;
+  const roi = totalApostado > 0 ? (beneficioNeto / totalApostado * 100) : 0;
+  let racha = 0, rachaTipo = null;
+  if (sinNulas.length > 0) {
+    rachaTipo = sinNulas[sinNulas.length - 1].resultado;
+    for (let i = sinNulas.length - 1; i >= 0; i--) {
+      if (sinNulas[i].resultado === rachaTipo) racha++; else break;
+    }
+  }
+  return { total, ganadas, nulas, totalApostado, beneficioNeto, pctAcierto, roi, racha, rachaTipo };
+}
+
+function colorClass(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : ''; }
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  updateHeaderBank();
+  document.getElementById('bank-input').value = state.bank;
+  const ap = state.apuestas;
+  const s = calcStats(ap);
+
+  document.getElementById('kpi-grid').innerHTML = [
+    { label: 'Bank actual', value: fmtBank(state.bank), sub: 'Saldo total', cls: '' },
+    { label: 'Beneficio neto', value: fmtEur(s.beneficioNeto), sub: `${s.total + s.nulas} apuestas`, cls: colorClass(s.beneficioNeto) },
+    { label: 'Total apostado', value: fmtBank(s.totalApostado), sub: 'Sin nulas', cls: '' },
+    { label: 'ROI global', value: fmtPct(s.roi), sub: 'Rentabilidad', cls: colorClass(s.roi) },
+    { label: '% Acierto', value: s.pctAcierto.toFixed(1) + '%', sub: `${s.ganadas}/${s.total} (+${s.nulas}↩)`, cls: '' },
+  ].map(k => `
+    <div class="stat-card">
+      <div class="stat-label">${k.label}</div>
+      <div class="stat-value ${k.cls}">${k.value}</div>
+      <div class="stat-sub">${k.sub}</div>
+    </div>`).join('');
+
+  const deportes = [
+    { key: 'tenis', label: '🎾 Tenis', cls: 'tennis' },
+    { key: 'futbol', label: '⚽ Fútbol', cls: 'football' },
+  ];
+
+  document.getElementById('sport-breakdown').innerHTML = [
+    { key: 'all', label: '⚡ Todas', cls: 'all' }, ...deportes
+  ].map(d => {
+    const fil = d.key === 'all' ? ap : ap.filter(a => a.deporte === d.key);
+    const st = calcStats(fil);
+    return `<div class="sport-row">
+      <span class="sport-tag ${d.cls}">${d.label}</span>
+      <span style="font-size:12px;color:var(--ink-soft)">${st.total} ap. · ${st.pctAcierto.toFixed(0)}%</span>
+      <span style="font-size:13px;font-weight:600;color:${st.beneficioNeto >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtEur(st.beneficioNeto)}</span>
+    </div>`;
+  }).join('');
+
+  const rachaHtml = s.rachaTipo === 'ganada'
+    ? `<span class="racha-pill win">🔥 ${s.racha} victoria${s.racha !== 1 ? 's' : ''}</span>`
+    : s.rachaTipo === 'perdida'
+    ? `<span class="racha-pill loss">❄️ ${s.racha} derrota${s.racha !== 1 ? 's' : ''}</span>`
+    : `<span class="racha-pill none">Sin apuestas</span>`;
+
+  document.getElementById('racha-section').innerHTML = `
+    <div style="margin-bottom:14px">${rachaHtml}</div>
+    <div class="divider"></div>
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px">
+      ${deportes.map(d => {
+        const fil = ap.filter(a => a.deporte === d.key);
+        const st = calcStats(fil);
+        return `<div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+            <span class="sport-tag ${d.cls}" style="font-size:11px">${d.label}</span>
+            <span style="font-size:12px;font-weight:600">${st.pctAcierto.toFixed(1)}%</span>
+          </div>
+          <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(st.pctAcierto,100)}%;background:${d.cls==='tennis'?'var(--tennis)':'var(--football)'};border-radius:3px;transition:width 0.5s"></div>
+          </div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:3px">${st.ganadas}/${st.total} ganadas · ROI ${fmtPct(st.roi)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  const porMes = {};
+  ap.forEach(a => {
+    const key = a.fecha.slice(0, 7);
+    if (!porMes[key]) porMes[key] = [];
+    porMes[key].push(a);
+  });
+  const meses = Object.keys(porMes).sort().reverse();
+  const mN = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  document.getElementById('monthly-body').innerHTML = meses.length === 0
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--ink-faint);padding:24px">Sin datos aún</td></tr>`
+    : meses.map(m => {
+        const st = calcStats(porMes[m]);
+        const [y, mo] = m.split('-');
+        const bCls = st.beneficioNeto >= 0 ? 'color:var(--green);font-weight:600' : 'color:var(--red);font-weight:600';
+        const rCls = st.roi >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+        return `<tr>
+          <td><strong>${mN[parseInt(mo)-1]} ${y}</strong></td>
+          <td>${st.total + st.nulas}</td>
+          <td>${st.pctAcierto.toFixed(0)}% <span style="color:var(--ink-faint)">(${st.ganadas}/${st.total})</span></td>
+          <td>${fmtBank(st.totalApostado)}</td>
+          <td style="${bCls}">${fmtEur(st.beneficioNeto)}</td>
+          <td style="${rCls}">${fmtPct(st.roi)}</td>
+        </tr>`;
+      }).join('');
+}
+
+// ─── Historial ────────────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistorial();
+}
+
+function renderHistorial() {
+  let ap = [...state.apuestas].reverse();
+  if (filtroActivo === 'tenis') ap = ap.filter(a => a.deporte === 'tenis');
+  else if (filtroActivo === 'futbol') ap = ap.filter(a => a.deporte === 'futbol');
+  else if (filtroActivo === 'ganada') ap = ap.filter(a => a.resultado === 'ganada');
+  else if (filtroActivo === 'perdida') ap = ap.filter(a => a.resultado === 'perdida');
+  else if (filtroActivo === 'nula') ap = ap.filter(a => a.resultado === 'nula');
+
+  document.getElementById('historial-count').textContent = `${ap.length} apuesta${ap.length !== 1 ? 's' : ''}`;
+
+  if (ap.length === 0) {
+    document.getElementById('historial-list').innerHTML = `<div class="empty-state"><div style="font-size:32px">📭</div><p>No hay apuestas con este filtro</p></div>`;
+    return;
+  }
+
+  const dIcon = { tenis: '🎾', futbol: '⚽' };
+  const dCls = { tenis: 'tennis', futbol: 'football' };
+
+  document.getElementById('historial-list').innerHTML = ap.map(a => {
+    const esNula = a.resultado === 'nula';
+    const balStyle = esNula ? 'color:var(--nula);font-weight:500' : a.beneficio >= 0 ? 'color:var(--green);font-weight:600' : 'color:var(--red);font-weight:600';
+    const balText = esNula ? '±0,00 €' : fmtEur(a.beneficio);
+    const [y, m, d] = a.fecha.split('-');
+    return `<div class="apuesta-row">
+      <span style="color:var(--ink-soft);font-size:12px">${d}/${m}/${y.slice(2)}</span>
+      <span>
+        <span class="sport-tag ${dCls[a.deporte]}" style="font-size:10px;margin-right:4px">${dIcon[a.deporte]}</span>
+        <span style="color:var(--ink-soft);font-size:12px">${a.desc || '—'}</span>
+      </span>
+      <span style="font-weight:600">${a.cuota.toFixed(2)}</span>
+      <span>${fmtBank(a.cantidad)}</span>
+      <span><span class="badge ${a.resultado}">${a.resultado}</span></span>
+      <span style="${balStyle}">${balText}</span>
+      <button class="del-btn" onclick="eliminarApuesta(${a.id})" title="Eliminar">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function eliminarApuesta(id) {
+  if (!confirm('¿Eliminar esta apuesta?')) return;
+  const ap = state.apuestas.find(a => a.id === id);
+  if (!ap) return;
+  const newBank = Math.round((state.bank - ap.beneficio) * 100) / 100;
+  setSyncDot('syncing');
+  try {
+    await sbDelete('apuestas', `?id=eq.${id}`);
+    if (ap.resultado !== 'nula') {
+      await sbPatch('config', '?key=eq.bank', { value: newBank });
+    }
+    state.bank = newBank;
+    state.apuestas = state.apuestas.filter(a => a.id !== id);
+    updateHeaderBank();
+    renderHistorial();
+    setSyncDot('ok');
+    toast('Apuesta eliminada');
+  } catch(e) {
+    setSyncDot('error');
+    toast('Error al eliminar ❌');
+  }
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(async () => {
+  await loadFromSupabase();
+  document.getElementById('loading').classList.add('hidden');
+  initForm();
+  renderDashboard();
+})();
+</script>
+</body>
+</html>
